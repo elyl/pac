@@ -189,9 +189,12 @@ def verify_certif(trusted, untrusted1, untrusted2):
     f = open('ut1', 'w+')
     f.write(untrusted1)
     f.close()
+    f = open('ut2', 'w+')
+    f.write(untrusted2)
+    f.close()
     
     # prépare les arguments à envoyer à openssl
-    args = ['openssl', 'verify', '-trusted t1', '-untrusted ut1']
+    args = ['openssl', 'verify', '-verbose', '-CAfile t1', '-untrusted ut1', 'ut2']
 
     if isinstance(untrusted2, str):
         ut2 = untrusted2.encode('utf-8')
@@ -202,7 +205,7 @@ def verify_certif(trusted, untrusted1, untrusted2):
     pipeline = Popen(args, stdin=PIPE, stdout=PIPE, stderr=PIPE)
 
     # envoie plaintext sur le stdin de openssl, récupère stdout et stderr
-    stdout, stderr = pipeline.communicate(ut2)
+    stdout, stderr = pipeline.communicate()
 
     # si un message d'erreur est présent sur stderr, on arrête tout
     # attention, sur stderr on récupère des bytes(), donc on convertit

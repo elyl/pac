@@ -186,6 +186,21 @@ class Connection:
         crypt = openssl.encrypt(login + '-' + challenge, password)
         self.post('/bin/login/CHAP', user=login, response=crypt)
 
+    def otp(self):
+        a = base64.b64decode(self.get('/bin/police_hq/ticket/241/attachment/exhibit-A'))
+        b = base64.b64decode(self.get('/bin/police_hq/ticket/241/attachment/exhibit-B'))
+        myarray = bytearray()
+        for i, j in zip(a, b):
+            myarray.append(i ^ j)
+        rep = bytearray()
+        for ch in myarray:
+            rep.append((ch ^ ord('0')))
+        rep2 = bytearray()
+        for ch in myarray:
+            rep2.append((ch ^ ord('1')))
+        print (rep2)
+        return rep
+
     def authenti(self, password):
         login = "carolina85"
         d = {'username':login, 'timestamp':time.time()}
