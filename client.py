@@ -5,10 +5,14 @@ import urllib.error
 import base64
 import openssl
 import time
+import binascii
 
 # Ceci est du code Python v3.x (la version >= 3.4 est conseillée pour une
 # compatibilité optimale).
 # --- les admins
+
+def init():
+    return Connection()
 
 class ServerError(Exception):
     """
@@ -40,7 +44,7 @@ class Connection:
     >>> c.get('/bin/echo')
     'usage: echo [arguments]'
     """
-    def __init__(self, base_url):
+    def __init__(self, base_url='http://pac.fil.cool/uglix'):
         self.base = base_url
         # au départ nous n'avons pas d'identifiant de session
         self.session = None
@@ -201,6 +205,28 @@ class Connection:
         print (rep2)
         return rep
 
+    def verify_transaction(self, cb):
+        ca = self.get('/bin/banks/CA')
+        info = self.get('/bin/banks/card-data/' + cb)
+        if openssl.verify_certif(ca, info['bank-certificate'], info['card-certificate']) != 'ut2: OK\n':
+            return False
+        if openssl.verify_challenge(info['challenge'], info['card-certificate'], info['signature']) != 'Verified OK\n':
+            return False
+        if info['bank-name'] not in openssl.getText(info['bank-certificate']):
+            return False
+        if info['bank-name'] not in openssl.getText(info['card-certificate']):
+            return False
+        if info['card-number'] not in openssl.getText(info['card-certificate']):
+            return False
+        return True
+
+    def transactions(self):
+        t = self.get('/bin/banks/forensics')
+        statuses = []
+        for card in t['card-numbers']:
+            statuses.append(self.verify_transaction(card))
+        return {'identifier':t['identifier'], 'statuses':statuses}
+
     def authenti(self, password):
         login = "carolina85"
         d = {'username':login, 'timestamp':time.time()}
@@ -222,7 +248,13 @@ class Connection:
 
     def srequest(self, method, url, args, service):
         data = json.dumps({'method':method, 'url':url, 'args': args}).encode()
-        crypt = openssl.encrypt_service(data, self.service_key)
-        res = self.post_raw('/service/' + service + '/request', crypt)
+        crypt = openssl.encrypt(data, self.service_key)
+        res = self.post_raw('/service/' + service + '/request', binascii.a2b_base64(crypt))
         return openssl.decrypt_service(res, self.service_key)
                                           
+    def gateway(self):
+        dico = {'method':'PUT', 'url':'/bin/echo', 'data':'VsOkaW7Dtg=='}
+        data = openssl.encrypt(json.dumps(dico, 'debug-me').encode(), 'debug-me')
+        retour = self.post_raw('/bin/test-gateway', binascii.a2b_base64(data))
+
+        return openssl.decrypt_service(retour, 'debug-me')
