@@ -95,7 +95,7 @@ class Connection:
             # en-tête pour le post-processing.
             headers = dict(e.headers)
             message = e.read()
-            raise ServerError(e.code, self._post_processing(message, headers)) from None
+            return self._post_processing(message, headers)
           
     
     def get(self, url):
