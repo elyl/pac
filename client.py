@@ -263,14 +263,16 @@ class Connection:
         k1 = 4022730752
         k2 = 2636928640
         x1 = (y >> 14) << 14 # 18 bits poids fort
-        x1 |= ((x1 >> 18) & 0x3FFF) ^ (y & 0x3FFF)
-        #x2 = (x1 << 17) >> 17 # 15 bits poids faible
-        #x2 |= (x2 & k1) ^ (((x1 << 2) >> 17) << 15) # 15 bits suivants
-        #x2 |= ((x2 >> 30) << 30) ^ ((((x1 >> 15) << 30) >> 15) & k1) # 2 bits poids fort
-        #x3 = x2
-        #print (x1)
-        #print (x2)
-        return x1
+        x1 |= ((x1 >> 18) & 0x3FFF) ^ (y & 0x3FFF) # 14 bits poids faible
+        x2 = x1 & 0x7FFF # 15 bits poids faible
+        x2 |= ((x2 << 15) & k1) ^ (x1 & 0x3FFF8000) # 15 bits suivants
+        x2 |= ((x2 & 0x18000) << 15) ^ (x1 & 0xC0000000) # 2 bits poids fort
+        x3 = x2 & 0x7F # 7 bits de poids faible
+        x3 |= ((x3 << 7) & k2) ^ (x2 & 0x3F80) # 7 bits suivants
+        x3 |= (((x3 << 7) & 0x1FC0000) & k2) ^ (x2 & 0x1FC000) # 7 bits suivants
+        x3 |= (((x3 << 7) & 0xFE00000) & k2) ^ (x2 & 0xFE00000) # 7 bits suivants
+        x3 |= (((x3 << 7) & 0xF0000000) & k2) ^ (x2 & 0xF0000000) # 4 bits de poids fort
+        return x3
 
     def _f(self, y):
         y ^= y >> 11
