@@ -123,11 +123,15 @@ def decrypt(plaintext, passphrase, cipher='aes-128-cbc'):
     # attention, sur stderr on récupère des bytes(), donc on convertit
     error_message = stderr.decode()
     if error_message != '':
-        raise OpensslError(error_message)
+        return ''
+    #    raise OpensslError(error_message)
 
     # OK, openssl a envoyé le chiffré sur stdout, en base64.
     # On récupère des bytes, donc on en fait une chaine unicode
-    return stdout.decode()
+    try:
+        return stdout.decode()
+    except UnicodeError:
+        return ''
 
 def decrypt_service(plaintext, passphrase, cipher='aes-128-cbc'):
     """invoke the OpenSSL library (though the openssl executable which must be

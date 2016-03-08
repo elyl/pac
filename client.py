@@ -183,10 +183,8 @@ class Connection:
         request.add_header('Content-type', content_type)
         return self._query(url, request, data)
 
-    def chap(self):
+    def chap(self, login='carolina85', password='+*aX7*md&L'):
         challenge = self.get('/bin/login/CHAP')['challenge']
-        password = "+*aX7*md&L"
-        login = "carolina85"
         crypt = openssl.encrypt(login + '-' + challenge, password)
         self.post('/bin/login/CHAP', user=login, response=crypt)
 
@@ -286,3 +284,15 @@ class Connection:
         print(y)
         y ^= y >> 18
         return y
+
+    def find_chap(self):
+        login = 'aurelia51'
+        challenge = '55e87bc1e4fa43d18c9f98c5b42b083e'
+        crypt = 'U2FsdGVkX18ccjJmQQyzx18f33Gr6VchVU1imE2pnhyvV/66P3+hdyD+tLfAV856\nPlHPfWbmZs7i0TJKTEah/Q==\n'
+        pass_list = self.get('/share/words').split()
+        for password in pass_list:
+            if openssl.decrypt(crypt, password) == login + '-' + challenge:
+                return password
+        return 'cacamou'
+
+               
