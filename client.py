@@ -258,3 +258,26 @@ class Connection:
         retour = self.post_raw('/bin/test-gateway', binascii.a2b_base64(data))
 
         return openssl.decrypt_service(retour, 'debug-me')
+
+    def reverse_f(self, y):
+        k1 = 4022730752
+        k2 = 2636928640
+        x1 = (y >> 14) << 14 # 18 bits poids fort
+        x1 |= ((x1 >> 18) & 0x3FFF) ^ (y & 0x3FFF)
+        #x2 = (x1 << 17) >> 17 # 15 bits poids faible
+        #x2 |= (x2 & k1) ^ (((x1 << 2) >> 17) << 15) # 15 bits suivants
+        #x2 |= ((x2 >> 30) << 30) ^ ((((x1 >> 15) << 30) >> 15) & k1) # 2 bits poids fort
+        #x3 = x2
+        #print (x1)
+        #print (x2)
+        return x1
+
+    def _f(self, y):
+        y ^= y >> 11
+        print(y)
+        y ^= (y << 7) & 2636928640
+        print(y)
+        y ^= (y << 15) & 4022730752
+        print(y)
+        y ^= y >> 18
+        return y
