@@ -272,7 +272,10 @@ class Connection:
         x3 |= (((x3 << 7) & 0x1FC0000) & k2) ^ (x2 & 0x1FC000) # 7 bits suivants
         x3 |= (((x3 << 7) & 0xFE00000) & k2) ^ (x2 & 0xFE00000) # 7 bits suivants
         x3 |= (((x3 << 7) & 0xF0000000) & k2) ^ (x2 & 0xF0000000) # 4 bits de poids fort
-        return x3
+        x4 = x3 & 0xFFE00000 # 11 bits poids fort
+        x4 |= (x3 >> 11) ^ (x3 & 0x1FFC00) # 11 bits suivants
+        x4 |= ((x3 >> 11) & 0x3FF) ^ (x3 & 0x3FF) # 10 bits poids faible
+        return x4
 
     def _f(self, y):
         y ^= y >> 11
