@@ -6,6 +6,7 @@ import base64
 import openssl
 import time
 import binascii
+from mersenne import *
 
 # Ceci est du code Python v3.x (la version >= 3.4 est conseillée pour une
 # compatibilité optimale).
@@ -183,6 +184,7 @@ class Connection:
         request.add_header('Content-type', content_type)
         return self._query(url, request, data)
 
+    #aurelia51/ingot
     def chap(self, login='carolina85', password='+*aX7*md&L'):
         challenge = self.get('/bin/login/CHAP')['challenge']
         crypt = openssl.encrypt(login + '-' + challenge, password)
@@ -257,7 +259,36 @@ class Connection:
 
         return openssl.decrypt_service(retour, 'debug-me')
 
-    def reverse_f(self, y):
+    def reverse_f(self, nb):
+        # reverse y ^= y >> 18
+        last14 = nb >> 18
+        part1 = nb ^ last14
+
+        # reverse y ^= (y << 15) & 4022730752
+        first17 = part1 << 15
+        part2 = part1 ^ (first17 & 4022730752)
+        
+        # reverse y ^= (y << 7) & 2636928640
+        part3a = part2 << 7
+        part3b = part2 ^ (part3a & 2636928640)
+        part3c = part3b << 7
+        part3d = part2 ^ (part3c & 2636928640)
+        part3e = part3d << 7
+        part3f = part2 ^ (part3e & 2636928640)
+        part3g = part3f << 7
+        part3h = part2 ^ (part3g & 2636928640)
+        part3i = part3h << 7
+        part3 = part2 ^ (part3i & 2636928640)
+        
+        # reverse y ^= y >> 11
+        part4a = part3 >> 11
+        part4b = part3 ^ part4a
+        part4c = part4b >> 11;
+        part4 = part3 ^ part4c;
+        
+        return part4
+    
+    def reverse_f1(self, y):
         k1 = 4022730752
         k2 = 2636928640
         x1 = (y >> 14) << 14 # 18 bits poids fort
@@ -265,14 +296,21 @@ class Connection:
         x2 = x1 & 0x7FFF # 15 bits poids faible
         x2 |= ((x2 << 15) & k1) ^ (x1 & 0x3FFF8000) # 15 bits suivants
         x2 |= ((x2 & 0x18000) << 15) ^ (x1 & 0xC0000000) # 2 bits poids fort
-        x3 = x2 & 0x7F # 7 bits de poids faible
-        x3 |= ((x3 << 7) & k2) ^ (x2 & 0x3F80) # 7 bits suivants
-        x3 |= (((x3 << 7) & 0x1FC0000) & k2) ^ (x2 & 0x1FC000) # 7 bits suivants
-        x3 |= (((x3 << 7) & 0xFE00000) & k2) ^ (x2 & 0xFE00000) # 7 bits suivants
-        x3 |= (((x3 << 7) & 0xF0000000) & k2) ^ (x2 & 0xF0000000) # 4 bits de poids fort
-        x4 = x3 & 0xFFE00000 # 11 bits poids fort
-        x4 |= (x3 >> 11) ^ (x3 & 0x1FFC00) # 11 bits suivants
-        x4 |= ((x3 >> 11) & 0x3FF) ^ (x3 & 0x3FF) # 10 bits poids faible
+        x3 = x2 & 0x7F # 7 bits de poids faible OK
+        x3 |= (((x2 << 7) & 0x3F80) & k2) ^ (x2 & 0x3F80) # 7 bits suivants
+        #x3 |= (((x2 << 7) & 0x1FC0000) & k2) ^ (x2 & 0x1FC000) # 7 bits suivants
+        #x3 |= (((x2 << 7) & 0xFE00000) & k2) ^ (x2 & 0xFE00000) # 7 bits suivants
+        #x3 |= (((x2 << 7) & 0xF0000000) & k2) ^ (x2 & 0xF0000000) # 4 bits de poids fort
+        #x4 = x3 & 0xFFE00000 # 11 bits poids fort
+        #x4 |= ((x3 >> 11) & 0x1FFC00) ^ (x3 & 0x1FFC00) # 11 bits suivants
+        #x4 |= ((x3 >> 11) & 0x3FF) ^ (x3 & 0x3FF) # 10 bits poids faible
+        x4 = x3 >> 11
+        x4 ^= x3
+        x4 = x4 >> 11
+        x4 ^= x3
+        print (x1)
+        print (x2)
+        print (x3)
         return x4
 
     def _f(self, y):
@@ -284,6 +322,21 @@ class Connection:
         print(y)
         y ^= y >> 18
         return y
+
+    def set_generator(self, cipher):
+        n = 0
+        MT = [0] * 624 
+        for i in range(2496):
+            MT[n] |= (cipher[i] ^ 0x20) << ((i % 4) * 8)
+            if (i % 4 == 0 and i != 0):
+                MT[n] = self.reverse_f(MT[n])
+                n += 1
+        return MT
+
+    def reverse_cs(self, cipher):
+        m = MersenneTwister()
+        m.set_state(self.set_generator(cipher))
+        return cipher[624] ^ (m.rand() & 0xff)
 
     def find_chap(self):
         login = 'aurelia51'
