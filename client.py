@@ -315,11 +315,8 @@ class Connection:
 
     def _f(self, y):
         y ^= y >> 11
-        print(y)
         y ^= (y << 7) & 2636928640
-        print(y)
         y ^= (y << 15) & 4022730752
-        print(y)
         y ^= y >> 18
         return y
 
@@ -328,7 +325,7 @@ class Connection:
         MT = [0] * 624 
         for i in range(2496):
             MT[n] |= (cipher[i] ^ 0x20) << ((i % 4) * 8)
-            if (i % 4 == 0 and i != 0):
+            if (i % 4 == 3):
                 MT[n] = self.reverse_f(MT[n])
                 n += 1
         return MT
@@ -337,6 +334,11 @@ class Connection:
         m = MersenneTwister()
         m.set_state(self.set_generator(cipher))
         return cipher[624] ^ (m.rand() & 0xff)
+
+    def test_reverse_f(self):
+        for i in range((1 << 32) - 1):
+            if i != self.reverse_f(self._f(i)):
+                return i + ' cacamou'
 
     def find_chap(self):
         login = 'aurelia51'
