@@ -6,6 +6,7 @@ import base64
 import openssl
 import time
 import binascii
+import encryption
 from mersenne import *
 
 # Ceci est du code Python v3.x (la version >= 3.4 est conseillée pour une
@@ -324,7 +325,7 @@ class Connection:
         n = 0
         MT = [0] * 624 
         for i in range(2496):
-            MT[n] |= (cipher[i] ^ 0x20) << ((i % 4) * 8)
+            MT[n] |= ((cipher[i] ^ 0x20) << ((i % 4) * 8))
             if (i % 4 == 3):
                 MT[n] = self.reverse_f(MT[n])
                 n += 1
@@ -333,12 +334,23 @@ class Connection:
     def reverse_cs(self, cipher):
         m = MersenneTwister()
         m.set_state(self.set_generator(cipher))
-        return cipher[624] ^ (m.rand() & 0xff)
+        plain = bytearray()
+        for i in range(2496):
+            plain.append(0x20)
+        for i in range(2496, len(cipher)):
+            if i % 4 == 0:
+                mask = m.rand()
+            plain.append(cipher[i] ^ ((mask >> ((i % 4) * 8)) & 0xff))
+        return plain
 
     def test_reverse_f(self):
         for i in range((1 << 32) - 1):
             if i != self.reverse_f(self._f(i)):
                 return i + ' cacamou'
+
+    def dummy_crypt(self):
+        plain = ' ' * 3000
+        return encryption.encrypt(plain, 'toto')    
 
     def find_chap(self):
         login = 'aurelia51'

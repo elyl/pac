@@ -14,6 +14,7 @@ def encrypt(plaintext, key):
         if (i % 4) == 0:
             # get 32 pseudo-random bits
             mask_word = random.getrandbits(32)
+            print(mask_word)
 
         # extract the next unused 8 bits from mask_word
         mask_byte = (mask_word >> (8 * (i % 4))) & 0xff
