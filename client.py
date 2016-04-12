@@ -7,7 +7,10 @@ import openssl
 import time
 import binascii
 import encryption
+import math
 from mersenne import *
+from blocks import *
+from prime_gen import *
 
 # Ceci est du code Python v3.x (la version >= 3.4 est conseillée pour une
 # compatibilité optimale).
@@ -362,4 +365,89 @@ class Connection:
                 return password
         return 'cacamou'
 
-               
+    def tob64(self, block):
+        return base64.b64encode(base64.b16decode(block.hex().encode())).decode()
+
+    def fromb64(self, block):
+        return Block(base64.b64decode(block.encode()))
+
+    def toMessage(self, cipher):
+        return Message(base64.b16encode(base64.b64decode(cipher.encode())).decode())
+                        
+    
+    def padding(self, cipher):
+        text = toMessage(cipher)
+        plain = []
+        aes = []
+        r = ''
+        for i in range (16):
+            while xxx:
+                iv = Blocks.random()
+                if i != 0:
+                    for j in range(i):
+                        iv[15 - j] = aes[j] ^(i + 1)
+                        r = self.post('/bin/frobnicate', ciphertext=self.tob64(text[0]), IV=self.tob64(iv))
+                        aes.append(iv[15 - i] ^ (i + 1))
+                        plain.insert(0, iv[15 - i] ^ (i + 1) ^ self.fromb64()[15 - i])
+                        print (plain[0])
+
+            return plain
+
+    def xgcd(self, a, b):
+        prevx, x = 1, 0;  prevy, y = 0, 1
+        while b:
+            q, r = divmod(a,b)
+            x, prevx = prevx - q*x, x
+            y, prevy = prevy - q*y, y
+            a, b = b, r
+        return a, prevx, prevy
+
+    def is_prime(self, n):
+        l = int(n ** 0.5)
+        for k in primes():
+            if (n % k == 0):
+                return False
+            if k > l:
+                break
+        return True
+        
+    def fermat_premier(self):
+        n = int(self.get('/bin/hackademy/ticket/1253/attachment/n'))
+        for k in range(2, n):
+            if (n % k) == 0:
+                return k
+
+    def ticket1251(self):
+        a = int(self.get('/bin/hackademy/ticket/1251/attachment/a'))
+        b = int(self.get('/bin/hackademy/ticket/1251/attachment/b'))
+        n = int(self.get('/bin/hackademy/ticket/1251/attachment/n'))
+        return (((n - b) * self.xgcd(a, n)[1]) % n)
+
+    def ticket1252(self):
+        n = self.get('/bin/hackademy/ticket/1252/attachment/n')
+        x = self.get('/bin/hackademy/ticket/1252/attachment/x')
+        for n1, n2, k in n, n, x:
+            r = self.xgcd(n1, n2)
+        return k
+
+    def ticket1254(self):
+        a = int(self.get('/bin/hackademy/ticket/1254/attachment/a'))
+        b = int(self.get('/bin/hackademy/ticket/1254/attachment/b'))
+        while True:
+            c = random.randint(a, b)|3
+            if (pow(17, c, c) == 17):
+                return c
+
+    def ticket1256(self):
+        a = int(self.get('/bin/hackademy/ticket/1256/attachment/a'))
+        b = int(self.get('/bin/hackademy/ticket/1256/attachment/b'))
+        a = a//2
+        b = b//2
+        while True:
+            c = random.randint(a, b)|3
+            if (pow(17, c, c) == 17):
+                c = (c * 2) + 1
+                if (pow(17, c, c) == 17):
+                    return c
+            
+        
