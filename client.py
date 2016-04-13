@@ -403,13 +403,7 @@ class Connection:
         return a, prevx, prevy
 
     def is_prime(self, n):
-        l = int(n ** 0.5)
-        for k in primes():
-            if (n % k == 0):
-                return False
-            if k > l:
-                break
-        return True
+        return pow(17, n, n) == 17
         
     def fermat_premier(self):
         n = int(self.get('/bin/hackademy/ticket/1253/attachment/n'))
@@ -450,4 +444,23 @@ class Connection:
                 if (pow(17, c, c) == 17):
                     return c
             
-        
+    def ticket1258(self):
+        a = int(self.get('/bin/hackademy/ticket/1258/attachment/a'))
+        b = int(self.get('/bin/hackademy/ticket/1258/attachment/b'))
+        q = int(self.get('/bin/hackademy/ticket/1258/attachment/q'))
+        a2 = a // q
+        b2 = b // q
+        p = 6
+        while not self.is_prime(p):
+            c = random.randint(a2, b2)|2
+            p = 1 + q * c
+        g = 1
+        print(p)
+        px = (p - 1) // q
+        while g == 1:
+            x = random.randint(1, 2 << 16)
+            g = pow(x, px, p)
+        return g
+            
+c = Connection('http://pac.fil.cool/uglix')
+c.chap()
