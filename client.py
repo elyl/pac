@@ -461,6 +461,18 @@ class Connection:
             x = random.randint(1, 2 << 16)
             g = pow(x, px, p)
         return g
+
+    def ticket1260(self):
+            d = self.get('/bin/hackademy/exam/factoring/trial-division/D')
+            n = int(d['n'])
+            factors = []
+            for i in primes():
+                while (n % i == 0):
+                    factors.append(i)
+                    n = n // i
+                if (self.is_prime(n)):
+                    factors.append(n)
+                    return {'id':d['id'], 'factors':factors}
             
 c = Connection('http://pac.fil.cool/uglix')
 c.chap()
