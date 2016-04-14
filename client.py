@@ -11,6 +11,7 @@ import math
 from mersenne import *
 from blocks import *
 from prime_gen import *
+from rho import *
 
 # Ceci est du code Python v3.x (la version >= 3.4 est conseillée pour une
 # compatibilité optimale).
@@ -402,6 +403,11 @@ class Connection:
             a, b = b, r
         return a, prevx, prevy
 
+    def pgcd(self, a, b):
+        while b:
+            a, b = b, a%b
+        return a
+
     def is_prime(self, n):
         return pow(17, n, n) == 17
         
@@ -463,16 +469,32 @@ class Connection:
         return g
 
     def ticket1260(self):
-            d = self.get('/bin/hackademy/exam/factoring/trial-division/D')
-            n = int(d['n'])
-            factors = []
-            for i in primes():
-                while (n % i == 0):
-                    factors.append(i)
-                    n = n // i
+        d = self.get('/bin/hackademy/exam/factoring/trial-division/D')
+        n = int(d['n'])
+        factors = self.factdiv(n)
+        return {'id':d['id'], 'factors':factors}
+
+    def factdiv(self, n):
+        factors = []
+        for i in primes():
+            while (n % i == 0):
+                factors.append(i)
+                n = n // i
                 if (self.is_prime(n)):
                     factors.append(n)
-                    return {'id':d['id'], 'factors':factors}
+                    return factors
+
+    def ticket1262(self):
+        d = self.get('/bin/hackademy/exam/factoring/rho/A')
+        n = int(d['n'])
+        factors = []
+        while not self.is_prime(n):
+            c = brent(n)
+            factors.append(c)
+            n = n // c
+        factors.append(n)
+        return {'id':d['id'], 'factors':factors}
+
             
 c = Connection('http://pac.fil.cool/uglix')
 c.chap()
