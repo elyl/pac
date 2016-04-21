@@ -2,12 +2,12 @@ import json
 import urllib.request
 import urllib.parse
 import urllib.error
-import base64
 import openssl
 import time
 import binascii
 import encryption
 import math
+from base64 import *
 from mersenne import *
 from blocks import *
 from prime_gen import *
@@ -409,7 +409,10 @@ class Connection:
         return a
 
     def is_prime(self, n):
-        return pow(17, n, n) == 17
+        if n in {1, 2, 3, 5, 7, 11, 13, 17}:
+            return True
+        else:
+            return pow(3, n, n) == 3
         
     def fermat_premier(self):
         n = int(self.get('/bin/hackademy/ticket/1253/attachment/n'))
@@ -426,10 +429,13 @@ class Connection:
     def ticket1252(self):
         n = self.get('/bin/hackademy/ticket/1252/attachment/n')
         x = self.get('/bin/hackademy/ticket/1252/attachment/x')
-        for n1, n2, k in n, n, x:
-            r = self.xgcd(n1, n2)
-        return k
-
+        tx, tn = x[0], n[0]
+        for i in range(1, len(x)):
+            xgcd_values = self.xgcd(tn, n[i])
+            tx = (x[i] * tn * xgcd_values[1]) + (n[i] * tx * xgcd_values[2])
+            tn *= n[i]
+        return tx
+        
     def ticket1254(self):
         a = int(self.get('/bin/hackademy/ticket/1254/attachment/a'))
         b = int(self.get('/bin/hackademy/ticket/1254/attachment/b'))
@@ -485,7 +491,7 @@ class Connection:
                     return factors
 
     def ticket1262(self):
-        d = self.get('/bin/hackademy/exam/factoring/rho/A')
+        d = self.get('/bin/hackademy/exam/factoring/rho/A+')
         n = int(d['n'])
         factors = []
         while not self.is_prime(n):
@@ -494,6 +500,53 @@ class Connection:
             n = n // c
         factors.append(n)
         return {'id':d['id'], 'factors':factors}
+
+    def ticket1264(self):
+        d = self.get('/bin/hackademy/exam/factoring/p-1/A')
+        n = int(d['n'])
+        print (n)
+        factors = []
+        while not self.is_prime(n):
+            c = brent(n)
+            while not self.is_prime(c):
+                k = brent(c)
+                factors.append(k)
+                c = c // k
+            factors.append(c)
+            n = n // c
+        factors.append(n)
+        for n in factors:
+            if not self.is_prime(n):
+                factors.remove(n)
+                factors.append(self.factdiv(n))
+        return {'id':d['id'], 'factors':factors}
+
+    def hex_decode(self, text):
+        return b16decode("{0:016x}".format(int(hex(text), base=16)), casefold=True)
+                          
+    
+    def ticket1261(self):
+        data = self.get('/bin/hackademy/exam/elgamal/malleability')
+        pk = data['PK']
+        p = int(self.get('/bin/hackademy/ticket/1261/attachment/p'))
+        g = int(self.get('/bin/hackademy/ticket/1261/attachment/g'))
+        r = data['ciphertext'][0]
+        cipher = data['ciphertext'][1]
+        cipher = (cipher * 2 * (pk ** 2)) % p
+        r2 = (r * (g ** 2)) % p
+        m = self.post('/bin/hackademy/exam/elgamal/malleability', a=r2, b=cipher)
+        return self.hex_decode(m['m'] // 2)
+
+    def ticket1263(self):
+        p = int(self.get('/bin/hackademy/ticket/1263/attachment/p'))
+        g = int(self.get('/bin/hackademy/ticket/1263/attachment/g'))
+        sk = random.randint(1, p)
+        pk = pow(g, sk, p)
+        cipher = self.post('/bin/hackademy/exam/elgamal/decryption', h=pk)
+        s = pow(cipher['ciphertext'][0], sk, p)
+        m = (self.xgcd(s, p)[1] * cipher['ciphertext'][1]) % p
+        return self.hex_decode(m)
+        
 
             
 c = Connection('http://pac.fil.cool/uglix')
