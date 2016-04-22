@@ -255,7 +255,8 @@ class Connection:
         data = json.dumps({'method':method, 'url':url, 'args': args}).encode()
         crypt = openssl.encrypt(data, self.service_key)
         res = self.post_raw('/service/' + service + '/request', binascii.a2b_base64(crypt))
-        return openssl.decrypt_service(res, self.service_key)
+        r = openssl.decrypt_service(res, self.service_key)
+        return r
                                           
     def gateway(self):
         dico = {'method':'PUT', 'url':'/bin/echo', 'data':'VsOkaW7Dtg=='}
@@ -394,6 +395,8 @@ class Connection:
 
             return plain
 
+### HACKADEMY
+        
     def xgcd(self, a, b):
         prevx, x = 1, 0;  prevy, y = 0, 1
         while b:
@@ -502,8 +505,11 @@ class Connection:
         return {'id':d['id'], 'factors':factors}
 
     def ticket1264(self):
-        d = self.get('/bin/hackademy/exam/factoring/p-1/A')
+        d = self.get('/bin/hackademy/exam/factoring/p-1/A+')
         n = int(d['n'])
+        #f = open('p', 'r')
+        #n = int(f.read()) - 1
+        #f.close()
         print (n)
         factors = []
         while not self.is_prime(n):
@@ -547,7 +553,53 @@ class Connection:
         m = (self.xgcd(s, p)[1] * cipher['ciphertext'][1]) % p
         return self.hex_decode(m)
         
+    ### UVM
 
-            
+    def UVMLogin(self, login):
+        self.srequest('POST', '/bin/uVM/VIOS/logon', {'h4ckm0d3':True, 'username':login}, 'uVM')
+    
+    def getUVMParameters(self):
+        login = 'carolina85'
+        self.UVMLogin(login)
+        r = self.srequest('GET', '/bin/uVM/VIOS/parameters', {}, 'uVM')
+        return r
+
+    def UVMRegister(self):
+        login = 'carolina85'
+        raw = self.getUVMParameters()
+        params = json.loads(raw)
+        p = int(params['p'])
+        g = int(params['g'])
+        x = random.randint(1, p) % (p - 1)
+        h = pow(g, x, p)
+        print (x)
+        print (h)
+        return self.srequest('POST', '/bin/uVM/VIOS/register', {'h4ckm0d3':True, 'username':login, 'public_key':h, 'confirm':True}, 'uVM')
+
+    def UVMConfirm(self):
+        login = 'carolina85'
+        self.UVMLogin(login)
+        f = open('sk', 'r')
+        x = int(f.read())
+        f.close()
+        f = open('pk', 'r')
+        pk = int(f.read())
+        f.close()
+        f = open('p', 'r')
+        p = int(f.read())
+        f.close()
+        f = open('g', 'r')
+        g = int(f.read())
+        f.close()
+        f = open('q', 'r')
+        q = int(f.read())
+        f.close()
+        r = random.randint(0, p - 1)
+        com = pow(g, r, p)
+        data = json.loads(self.srequest('POST', '/bin/uVM/VIOS/identification', {'h4ckm0d3':True, 'username':login, 'commitment':com}, 'uVM'))
+        chal = data['challenge']
+        response = (r + chal * x) % (p - 1)
+        return self.srequest('POST', '/bin/uVM/VIOS/confirmation', {'h4ckm0d3':True, 'username':login, 'response':response}, 'uVM')
+
 c = Connection('http://pac.fil.cool/uglix')
 c.chap()
