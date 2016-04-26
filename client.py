@@ -7,6 +7,7 @@ import time
 import binascii
 import encryption
 import math
+import hashlib
 from base64 import *
 from mersenne import *
 from blocks import *
@@ -412,7 +413,7 @@ class Connection:
         return a
 
     def is_prime(self, n):
-        if n in {1, 2, 3, 5, 7, 11, 13, 17}:
+        if n in [1, 2, 3, 5, 7, 11, 13, 17]:
             return True
         else:
             return pow(3, n, n) == 3
@@ -511,6 +512,7 @@ class Connection:
         #n = int(f.read()) - 1
         #f.close()
         print (n)
+        print (d['id'])
         factors = []
         while not self.is_prime(n):
             c = brent(n)
@@ -600,6 +602,31 @@ class Connection:
         chal = data['challenge']
         response = (r + chal * x) % (p - 1)
         return self.srequest('POST', '/bin/uVM/VIOS/confirmation', {'h4ckm0d3':True, 'username':login, 'response':response}, 'uVM')
+
+    def UVMKey(self):
+        username = 'carolina85'
+        self.UVMLogin(username)
+        f = open('p', 'r')
+        p = int(f.read())
+        f.close()
+        f = open('g', 'r')
+        g = int(f.read())
+        f.close()
+        x = random.randint(0, p - 1)
+        A = pow(g, x, p)
+        response = json.loads(self.srequest('POST', '/bin/uVM/VIOS/AKE', {'username':username, 'A':A}, 'uVM'))
+        T = str(A)+','+str(response['B'])+','+str(response['k'])+',H4ck/05'
+        a = random.randint(0, p - 1)
+        r = pow(g, a, p)
+        c = hashlib.sha256()
+        c.update(T.encode())
+        size = 1 + r.bit_length() // 8
+        c.update(r.to_bytes(size, byteorder='big'))
+        c = int(c.hexdigest(), base=16)
+        s = a - c * x % (p - 1)
+        print([c,s])
+        response2 = self.srequest('POST', '/bin/uVM/VIOS/assistance/signature-verification', {'m':T, 'signature':[c, s]}, 'uVM')
+        return response2
 
 c = Connection('http://pac.fil.cool/uglix')
 c.chap()
