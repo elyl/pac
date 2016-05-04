@@ -572,7 +572,8 @@ class Connection:
         params = json.loads(raw)
         p = int(params['p'])
         g = int(params['g'])
-        x = random.randint(1, p) % (p - 1)
+        #x = random.randint(1, p) % (p - 1)
+        x = int(open('sk', 'r').read())
         h = pow(g, x, p)
         print (x)
         print (h)
@@ -603,9 +604,22 @@ class Connection:
         response = (r + chal * x) % (p - 1)
         return self.srequest('POST', '/bin/uVM/VIOS/confirmation', {'h4ckm0d3':True, 'username':login, 'response':response}, 'uVM')
 
+
+    def uVMH(self, msg, r):
+        h = hashlib.sha256(msg.encode())
+        h.update(r.to_bytes(1 + r.bit_length()//8, byteorder='big'))
+        return int(h.hexdigest(), 16)
+    
+    def uVMSign(self, msg):
+        a = random.randint(0,self.vm_p)
+        # a = 54321
+        r = pow(self.vm_g, a, self.vm_p)
+        c = self.uVMH(msg, r)
+        s = (a - self.vm_priv*c) % (self.vm_p - 1)
+        return c,s
+        
     def UVMKey(self):
         username = 'carolina85'
-        self.UVMLogin(username)
         f = open('p', 'r')
         p = int(f.read())
         f.close()
@@ -613,8 +627,12 @@ class Connection:
         g = int(f.read())
         f.close()
         x = random.randint(0, p - 1)
+        self.vm_priv = int(open('sk', 'r').read())
+        self.vm_p = p
+        self.vm_g = g
         A = pow(g, x, p)
-        response = json.loads(self.srequest('POST', '/bin/uVM/VIOS/AKE', {'username':username, 'A':A}, 'uVM'))
+        response = self.post('/bin/uVM/VIOS/AKE', username=username, A=A)
+        #T = "toto"
         T = str(A)+','+str(response['B'])+','+str(response['k'])+',H4ck/05'
         a = random.randint(0, p - 1)
         r = pow(g, a, p)
@@ -623,10 +641,20 @@ class Connection:
         size = 1 + r.bit_length() // 8
         c.update(r.to_bytes(size, byteorder='big'))
         c = int(c.hexdigest(), base=16)
-        s = a - c * x % (p - 1)
-        print([c,s])
-        response2 = self.srequest('POST', '/bin/uVM/VIOS/assistance/signature-verification', {'m':T, 'signature':[c, s]}, 'uVM')
-        return response2
+        s = (a - c * self.vm_priv) % (p - 1)
+        AB = pow(response['B'], x, p)
+        size = 1 + AB.bit_length() // 8
+        self.vm_k = hashlib.sha256(AB.to_bytes(size, byteorder='big')).hexdigest()
+        print(self.vm_k)
+        return self.post('/bin/uVM/VIOS/login', m=T, signature=[c, s])
+        
+    def vmrequest(self, method, url, args):
+        data = json.dumps({'method':method, 'url':url, 'args': args}).encode()
+        crypt = openssl.encrypt(data, self.vm_k)
+        res = self.post_raw('/bin/uVM/VIOS/g4t3w4y', binascii.a2b_base64(crypt))
+        print (res)
+        r = openssl.decrypt_service(res, self.vm_k)
+        return r
 
 c = Connection('http://pac.fil.cool/uglix')
 c.chap()
