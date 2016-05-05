@@ -233,16 +233,13 @@ class Connection:
             statuses.append(self.verify_transaction(card))
         return {'identifier':t['identifier'], 'statuses':statuses}
 
-    def authenti(self, password):
-        login = "carolina85"
+    def authenti(self, password, login='carolina85'):
         d = {'username':login, 'timestamp':time.time()}
         e = json.dumps(d)
         f = openssl.encrypt(e, password)
         return f
 
-    def service(self, name):
-        login = "carolina85"
-        password = "+*aX7*md&L"
+    def service(self, name, login='carolina85', password='+*aX7*md&L'):
         d = self.post('/bin/kerberos/authentication-service', username=login)
         key = openssl.decrypt(d['Client-TGS-session-key'], password)
         token = self.authenti(key)
@@ -424,6 +421,12 @@ class Connection:
             if (n % k) == 0:
                 return k
 
+    def gen_prime(self):
+        n = 4
+        while not self.is_prime(n):
+            n = random.randint(1, 2 << 1024)
+        return n
+
     def ticket1251(self):
         a = int(self.get('/bin/hackademy/ticket/1251/attachment/a'))
         b = int(self.get('/bin/hackademy/ticket/1251/attachment/b'))
@@ -554,6 +557,22 @@ class Connection:
         s = pow(cipher['ciphertext'][0], sk, p)
         m = (self.xgcd(s, p)[1] * cipher['ciphertext'][1]) % p
         return self.hex_decode(m)
+
+    def ticket1570(self):
+        e = int(self.get('/bin/hackademy/ticket/1570/attachment/e'))
+        z = e * 2
+        while self.xgcd(e, z)[0] != 1:
+            p = self.gen_prime()
+            q = self.gen_prime()
+            z = (p - 1) * (q - 1)
+        d = pow(e, z - 2, z)
+        n = p * q
+        print(n)
+        print(d)
+        cipher = self.post('/bin/hackademy/exam/rsa/keygen', n=n)['ciphertext']
+        print(cipher)
+        cipher = pow(cipher, d, n)
+        return base64.b16decode(str(hex(cipher)[2:]).upper())
         
     ### UVM
 
@@ -612,7 +631,6 @@ class Connection:
     
     def uVMSign(self, msg):
         a = random.randint(0,self.vm_p)
-        # a = 54321
         r = pow(self.vm_g, a, self.vm_p)
         c = self.uVMH(msg, r)
         s = (a - self.vm_priv*c) % (self.vm_p - 1)
