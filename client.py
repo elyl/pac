@@ -558,21 +558,47 @@ class Connection:
         m = (self.xgcd(s, p)[1] * cipher['ciphertext'][1]) % p
         return self.hex_decode(m)
 
+    def getTextValue(self, message):
+        i = int(hex(message),base=16)
+        hexa = "{0:016x}".format(i)
+        myb16 = b16decode(hexa,casefold=True)
+        return myb16
+                
+    ## RSA Keygen
     def ticket1570(self):
         e = int(self.get('/bin/hackademy/ticket/1570/attachment/e'))
-        z = e * 2
-        while self.xgcd(e, z)[0] != 1:
+#        z = e * 2
+        n = 0
+        while self.xgcd(e, n)[0] != 1:
             p = self.gen_prime()
             q = self.gen_prime()
-            z = (p - 1) * (q - 1)
-        d = pow(e, z - 2, z)
-        n = p * q
-        print(n)
-        print(d)
+            #z = (p - 1) * (q - 1)
+            n = p * q
+        #d = pow(e, z - 2, z)
+        #n = p * q
+        d = self.xgcd(e, (p - 1) * (q - 1))[1]
         cipher = self.post('/bin/hackademy/exam/rsa/keygen', n=n)['ciphertext']
-        print(cipher)
         cipher = pow(cipher, d, n)
-        return base64.b16decode(str(hex(cipher)[2:]).upper())
+        return self.getTextValue(cipher)
+
+    ## RSA factorisation
+    def ticket1571(self):
+        n = int(self.get('/bin/hackademy/ticket/1571/attachment/n'))
+        e = int(self.get('/bin/hackademy/ticket/1571/attachment/e'))
+        d = int(self.get('/bin/hackademy/ticket/1571/attachment/d'))
+        k = (e * d - 1) // 2
+        y = 1
+        z = 0
+        while y == 1 or y == n - 1:
+            x = random.randint(1, 2 << 2048)
+            y = pow(x, k, n)
+            if y == 1:
+                z = z + 1
+            if z == 10:
+                z = 0
+                k = k // 2
+        s = self.xgcd(y - 1, n)[0]
+        return s, n // s
         
     ### UVM
 
