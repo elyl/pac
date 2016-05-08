@@ -13,6 +13,7 @@ from mersenne import *
 from blocks import *
 from prime_gen import *
 from rho import *
+from sha256 import *
 
 # Ceci est du code Python v3.x (la version >= 3.4 est conseillée pour une
 # compatibilité optimale).
@@ -393,8 +394,29 @@ class Connection:
 
             return plain
 
+    ## SHA256 web-service - Marche pas, merci kevin
+    def ticket562(self):
+        job64 = self.srequest('GET', '/bin/police_hq/ticket/562/attachment/job', {}, 'police')
+        job = base64.b64decode(job64)
+        mac = self.srequest('GET', '/bin/police_hq/ticket/562/attachment/mac', {}, 'police')
+        lenData = (16+len(job))*8
+        lenP = 64-((16+len(job)%64))
+        p = []
+        p.append(0x80)
+        for i in range(lenP-3):
+            p.append(0x00)
+        p.append(lenData>>8 & 0xff)
+        p.append(lenData & 0xff)
+        s= [ 0x0 ]
+        newJob = list(job) + p + s
+        newmac = sha256(s=bytes(s),IV=mac).hexdigest()
+        print(self.srequest('POST','/dev/pr1nt0rz',{'job':base64.b64encode(bytes(newJob)).decode(),'mac':newmac}, 'police'))
+
 ### HACKADEMY
-        
+
+    def int_to_str(self, i):
+        i.to_bytes(i.bit_length()//8+1, 'little').decode()
+
     def xgcd(self, a, b):
         prevx, x = 1, 0;  prevy, y = 0, 1
         while b:
@@ -598,8 +620,30 @@ class Connection:
                 z = 0
                 k = k // 2
         s = self.xgcd(y - 1, n)[0]
-        return s, n // s
-        
+        return s, n // s, n
+
+    ## RSA MSB
+    def ticket1572(self):
+        n = int(self.get('/bin/hackademy/ticket/1572/attachment/n'))
+        e = int(self.get('/bin/hackademy/ticket/1572/attachment/e'))
+        c = self.get('/bin/hackademy/exam/rsa/most-significant-bit')['ciphertext']
+        a = 0
+        b = n
+        i = 0
+        while a != b and a-b != -1:
+            c2 = (pow(pow(2, i), e, n) * c) % n
+            r = self.post('/bin/hackademy/exam/rsa/most-significant-bit', c=c2)
+            print(r)
+            print(a-b)
+            if r['MSB']:
+                a = (a + b) // 2
+            else:
+                b = (a + b) // 2
+            i = i + 1
+        while pow(a, e, n) != c:
+            a = a + 1
+        return a
+    
     ### UVM
 
     def UVMLogin(self, login):
