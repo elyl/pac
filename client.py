@@ -503,6 +503,40 @@ class Connection:
             g = pow(x, px, p)
         return g
 
+    ## LOG DISCRET
+    def ticket1259(self):
+        ret = self.get('/bin/hackademy/exam/discrete-log/challenge/4')
+        g, h, p = int(ret['g']), int(ret['h']), int(ret['p'])
+        x = 1
+        z = g
+        while z != h:
+            z = (z * g) % p
+            x = x + 1
+        self.chap()
+        return self.post('/bin/hackademy/exam/discrete-log/challenge/4', x=x)
+        
+    def ticket1259b(self):
+        ret = self.get('/bin/hackademy/exam/discrete-log/challenge/6')
+        g, h, p = int(ret['g']), int(ret['h']), int(ret['p'])
+        T = 1 << 16
+        i = 1
+        H = {}
+        n = 1
+        while i < T:
+            n = n * g
+            n = n % p
+            H[n] = i
+            i = i + 1
+        print('Table OK')
+        S = pow(pow(g, T, p), p - 2, p)
+        u = h
+        i = 0
+        while True:
+            if u in H:
+                return i*T + H[u]
+            u = (u * S) % p
+            i = i + 1
+
     def ticket1260(self):
         d = self.get('/bin/hackademy/exam/factoring/trial-division/D')
         n = int(d['n'])
