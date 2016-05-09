@@ -516,9 +516,9 @@ class Connection:
         return self.post('/bin/hackademy/exam/discrete-log/challenge/4', x=x)
         
     def ticket1259b(self):
-        ret = self.get('/bin/hackademy/exam/discrete-log/challenge/6')
+        ret = self.get('/bin/hackademy/exam/discrete-log/challenge/7')
         g, h, p = int(ret['g']), int(ret['h']), int(ret['p'])
-        T = 1 << 16
+        T = 1 << 22
         i = 1
         H = {}
         n = 1
@@ -776,6 +776,71 @@ class Connection:
         res = self.post_raw('/bin/uVM/VIOS/g4t3w4y', binascii.a2b_base64(crypt))
         print (res)
         r = openssl.decrypt_service(res, self.vm_k)
+        return r
+
+    ## ROOT
+
+    ## FAILSAFE
+    def failsafe(self):
+        u1 = 'carolina85'
+        u2 = 'alfie.lockman'
+        u3 = 'carroll.rohan'
+        u1 = int.from_bytes(u1.encode(), byteorder='big')
+        u2 = int.from_bytes(u2.encode(), byteorder='big')
+        u3 = int.from_bytes(u3.encode(), byteorder='big')
+        share1 = int(self.get('/sbin/failsafe/share')['share'])
+        self.chap('alfie.lockman', '*$vkCB6fCF')
+        share2 = int(self.get('/sbin/failsafe/share')['share'])
+        self.chap('carroll.rohan', 'qU7qMef7Bc')
+        share3 = int(self.get('/sbin/failsafe/share')['share'])
+        p = int(self.get('/sbin/failsafe/p')['p'])
+        a, b, c = u1 ** 2, u1, 1
+        d, e, f = u2 ** 2, u2, 1
+        g, h, i = u3 ** 2, u3, 1
+        alpha =  (d * pow(a, p - 2, p)) % p #a^-1 ou (p*a)^-1 ? On essaye (p * a) ^ -1
+        share2 = share2 - alpha * share1
+        d = d - (alpha * a)
+        e = e - alpha * b
+        f = f - alpha * c
+        print(d % p)
+        beta = (g * pow(a, p - 2, p)) % p
+        share3 = share3 - beta * share1
+        g = g - beta * a
+        h = h - beta * b
+        i = i - beta * c
+        print(g % p)
+        gamma = (h * pow(e, p - 2, p)) % p
+        share3 = share3 - gamma * share2
+        h = h - gamma * e
+        i = i - gamma * f
+        print(h % p)
+        return (share3 * pow(i, p - 2, p)) % p
+
+    ## ROOT LOGIN
+    def root_login(self):
+        user='root'
+        password='u6l1x 5uck5'
+        p = int(self.get('/bin/SPEKE/parameter')['p'])
+        g = hashlib.sha256(password.encode())
+        g = int(g.hexdigest(), base=16)
+        g = pow(g, 2, p)
+        x = random.randint(2, p - 2)
+        A = pow(g, x, p)
+        r = self.post('/bin/SPEKE/hello', username=user, A=A)
+        AB = pow(r['B'], x, p)
+        size = 1 + AB.bit_length() // 8
+        k = hashlib.sha256(AB.to_bytes(size, byteorder='big')).hexdigest()
+        self.root_key = str(k)
+        T = user + ',' + str(A) + ',' + str(r['B']) + ',' + str(g) + ',' + str(k)
+        h = hashlib.sha256(T.encode()).hexdigest()
+        return self.post('/bin/SPEKE/confirmation', hash=h)
+
+    ##ROOT GW
+    def root_request(self, method, url, args):
+        data = json.dumps({'method':method, 'url':url, 'args': args}).encode()
+        crypt = openssl.encrypt(data, self.root_key)
+        res = self.post_raw('/bin/SPEKE/gateway', binascii.a2b_base64(crypt))
+        r = openssl.decrypt_service(res, self.root_key)
         return r
 
 c = Connection('http://pac.fil.cool/uglix')
