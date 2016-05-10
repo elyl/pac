@@ -8,6 +8,8 @@ import binascii
 import encryption
 import math
 import hashlib
+import os
+from subprocess import Popen, PIPE
 from base64 import *
 from mersenne import *
 from blocks import *
@@ -374,6 +376,13 @@ class Connection:
 
     def toMessage(self, cipher):
         return Message(base64.b16encode(base64.b64decode(cipher.encode())).decode())
+
+    def randBytes(self, n):
+        b = b''
+        for n in range(0, n):
+            b += 'a'.encode()
+            #b += random.randint(0, 255).to_bytes(1, byteorder='big')
+        return b
                         
     
     def padding(self, cipher):
@@ -411,6 +420,42 @@ class Connection:
         newJob = list(job) + p + s
         newmac = sha256(s=bytes(s),IV=mac).hexdigest()
         print(self.srequest('POST','/dev/pr1nt0rz',{'job':base64.b64encode(bytes(newJob)).decode(),'mac':newmac}, 'police'))
+
+    ## MD5 COLLIDE
+    def ticket669(self, user='carolina85'):
+        suffix = b'\n... h4ck m0d3'
+        prefix = (user + ' said...\n').encode()
+        prefix += os.urandom(64 * 8 - len(prefix))
+        open('/tmp/prefix', 'wb').write(prefix)
+        open('/tmp/suffix', 'wb').write(suffix)
+
+        proc = Popen(['md5_collider/coll_finder', '/tmp/prefix', '/tmp/out1_1', '/tmp/out1_2'])
+        if proc.wait():
+            print ('coll_finder failed')
+            exit (1)
+
+        o11 = open('/tmp/out1_1', 'rb').read()
+        o12 = open('/tmp/out1_1', 'rb').read()
+
+        open('/tmp/prefix2', 'wb').write(prefix+o11)
+
+        proc = Popen(['md5_collider/coll_finder', '/tmp/prefix2', '/tmp/out2_1', '/tmp/out2_2'])
+        if proc.wait():
+            print ('coll_finder failed 2')
+            exit (1)
+
+        o21 = open("/tmp/out2_1","rb").read()
+        o22 = open("/tmp/out2_2","rb").read()
+
+        files = []
+        for b1 in o11, o12:
+            for b2 in o21, o22:
+                files.append(prefix + b1 + b2 + suffix)
+
+        for f in files:
+            print (hashlib.md5(f).hexdigest())
+
+        return 'done, go test'
 
 ### HACKADEMY
 
@@ -505,20 +550,9 @@ class Connection:
 
     ## LOG DISCRET
     def ticket1259(self):
-        ret = self.get('/bin/hackademy/exam/discrete-log/challenge/4')
+        ret = self.get('/bin/hackademy/exam/discrete-log/challenge/8')
         g, h, p = int(ret['g']), int(ret['h']), int(ret['p'])
-        x = 1
-        z = g
-        while z != h:
-            z = (z * g) % p
-            x = x + 1
-        self.chap()
-        return self.post('/bin/hackademy/exam/discrete-log/challenge/4', x=x)
-        
-    def ticket1259b(self):
-        ret = self.get('/bin/hackademy/exam/discrete-log/challenge/7')
-        g, h, p = int(ret['g']), int(ret['h']), int(ret['p'])
-        T = 1 << 22
+        T = 1 << 24
         i = 1
         H = {}
         n = 1
