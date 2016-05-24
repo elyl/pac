@@ -16,6 +16,7 @@ from blocks import *
 from prime_gen import *
 from rho import *
 from sha256 import *
+from mrand48 import *
 
 # Ceci est du code Python v3.x (la version >= 3.4 est conseillée pour une
 # compatibilité optimale).
@@ -105,7 +106,8 @@ class Connection:
             # en-tête pour le post-processing.
             headers = dict(e.headers)
             message = e.read()
-            return self._post_processing(message, headers)
+            raise ServerError(e.code, self._post_processing(message, headers)) from None
+            #return self._post_processing(message, headers)
           
     
     def get(self, url):
@@ -245,8 +247,9 @@ class Connection:
     def service(self, name, login='carolina85', password='+*aX7*md&L'):
         d = self.post('/bin/kerberos/authentication-service', username=login)
         key = openssl.decrypt(d['Client-TGS-session-key'], password)
-        token = self.authenti(key)
+        token = self.authenti(key, login)
         d = self.post('/bin/kerberos/ticket-granting-service', TGT=d['TGT'], service=name, authenticator=token)
+        print(d)
         key = openssl.decrypt(d['Client-Server-session-key'], key)
         d = self.post('/service/' + name + '/hello', ticket=d['Client-Server-ticket'], authenticator=self.authenti(key))
         self.service_key = key
@@ -384,6 +387,28 @@ class Connection:
             #b += random.randint(0, 255).to_bytes(1, byteorder='big')
         return b
                         
+    def testIV(self, cipher, begin=0):
+        text = self.toMessage(cipher)
+        sortieAES = []
+        plaintext = []
+        for index in range(begin,16):
+            print(index)
+            while True:
+                iv = Block.random()
+                if index != 0:
+                    for j in range(index):
+                        iv[15-j]=sortieAES[j] ^ (index+1)
+                        try:		
+                            self.srequest('POST', '/bin/frobnicate', {'ciphertext':self.tob64(text[0]), 'IV':self.tob64(iv)}, 'police')
+                            sortieAES.append(iv[15-index] ^ (index+1))
+                            plaintext.insert(0,iv[15-index] ^ (index+1) ^ self.fromb64(initvector)[15-index])
+                            print(plaintext[0])
+                            break
+                        except ServerError:
+                            pass
+        return plaintext	
+
+
     
     def padding(self, cipher):
         text = toMessage(cipher)
@@ -488,10 +513,10 @@ class Connection:
             if (n % k) == 0:
                 return k
 
-    def gen_prime(self):
+    def gen_prime(self, limit=1<<1024):
         n = 4
         while not self.is_prime(n):
-            n = random.randint(1, 2 << 1024)
+            n = random.randint(1, limit)
         return n
 
     def ticket1251(self):
@@ -518,6 +543,25 @@ class Connection:
             if (pow(17, c, c) == 17):
                 return c
 
+    def ticket1255(self):
+        a = int(self.get('/bin/hackademy/ticket/1255/attachment/a'))
+        b = int(self.get('/bin/hackademy/ticket/1255/attachment/b'))
+        k = 1 << 63
+        p = []
+        Q = 1
+        while (a // Q) > k:
+            z = self.gen_prime(k)
+            Q *= z
+            p.append(z)
+        a2 = a // Q
+        b2 = b // Q
+        z = 4
+        while not self.is_prime(z):
+            z = random.randint(a2, b2)
+        p.append(z)
+        return self.post('/bin/hackademy/exam/prime/product', p=p)
+            
+            
     def ticket1256(self):
         a = int(self.get('/bin/hackademy/ticket/1256/attachment/a'))
         b = int(self.get('/bin/hackademy/ticket/1256/attachment/b'))
@@ -714,31 +758,28 @@ class Connection:
     
     ### UVM
 
-    def UVMLogin(self, login):
+    def uVMLogin(self, login):
         self.srequest('POST', '/bin/uVM/VIOS/logon', {'h4ckm0d3':True, 'username':login}, 'uVM')
     
-    def getUVMParameters(self):
-        login = 'carolina85'
-        self.UVMLogin(login)
+    def getUVMParameters(self, login):
+        self.uVMLogin(login)
         r = self.srequest('GET', '/bin/uVM/VIOS/parameters', {}, 'uVM')
         return r
 
-    def UVMRegister(self):
-        login = 'carolina85'
-        raw = self.getUVMParameters()
+    def uVMRegister(self, login='carolina85'):
+        raw = self.getUVMParameters(login)
         params = json.loads(raw)
         p = int(params['p'])
         g = int(params['g'])
-        #x = random.randint(1, p) % (p - 1)
-        x = int(open('sk', 'r').read())
+        x = random.randint(1, p) % (p - 1)
+        #x = int(open('sk', 'r').read())
         h = pow(g, x, p)
         print (x)
         print (h)
         return self.srequest('POST', '/bin/uVM/VIOS/register', {'h4ckm0d3':True, 'username':login, 'public_key':h, 'confirm':True}, 'uVM')
 
-    def UVMConfirm(self):
-        login = 'carolina85'
-        self.UVMLogin(login)
+    def uVMConfirm(self, login='carolina85'):
+        self.uVMLogin(login)
         f = open('sk', 'r')
         x = int(f.read())
         f.close()
@@ -774,8 +815,7 @@ class Connection:
         s = (a - self.vm_priv*c) % (self.vm_p - 1)
         return c,s
         
-    def UVMKey(self):
-        username = 'carolina85'
+    def uVMKey(self, username='carolina85'):
         f = open('p', 'r')
         p = int(f.read())
         f.close()
@@ -803,12 +843,38 @@ class Connection:
         self.vm_k = hashlib.sha256(AB.to_bytes(size, byteorder='big')).hexdigest()
         print(self.vm_k)
         return self.post('/bin/uVM/VIOS/login', m=T, signature=[c, s])
+
+    def shnorrsign(self, sk):
+        user = 'carolina85'
+        pk = open('carolina85/pk', 'r').read()
+        sign = self.uVMSign(pk)
+        return self.vmrequest('POST', '/web-of-trust/update', {'username':user, 'signature':sign, 'public_key':pk})
+
+    ##rand48
+    def find_rand48(self, iv):
+        r = mrand48()
+        for i in range(0, 0xffffffff):
+            r.srand48(i)
+            k = 0
+            k += (r.mrand48() << 96)
+            k += (r.mrand48() << 64)
+            k += (r.mrand48() << 32)
+            k += r.mrand48()
+            iv2 = 0
+            iv2 += (r.mrand48() << 96)
+            iv2 += (r.mrand48() << 64)
+            iv2 += (r.mrand48() << 32)
+            iv2 += r.mrand48()
+            if iv == iv2:
+                return hex(k)
+        print ('caca')
         
     def vmrequest(self, method, url, args):
         data = json.dumps({'method':method, 'url':url, 'args': args}).encode()
         crypt = openssl.encrypt(data, self.vm_k)
         res = self.post_raw('/bin/uVM/VIOS/g4t3w4y', binascii.a2b_base64(crypt))
-        print (res)
+        self.vm_res = res
+        self.raw = openssl.decrypt_service_raw(res, self.vm_k)
         r = openssl.decrypt_service(res, self.vm_k)
         return r
 
@@ -874,6 +940,7 @@ class Connection:
         data = json.dumps({'method':method, 'url':url, 'args': args}).encode()
         crypt = openssl.encrypt(data, self.root_key)
         res = self.post_raw('/bin/SPEKE/gateway', binascii.a2b_base64(crypt))
+        print(res)
         r = openssl.decrypt_service(res, self.root_key)
         return r
 
