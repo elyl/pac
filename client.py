@@ -543,6 +543,7 @@ class Connection:
             if (pow(17, c, c) == 17):
                 return c
 
+    ## PRIME PRODUCT
     def ticket1255(self):
         a = int(self.get('/bin/hackademy/ticket/1255/attachment/a'))
         b = int(self.get('/bin/hackademy/ticket/1255/attachment/b'))
@@ -555,13 +556,15 @@ class Connection:
             p.append(z)
         a2 = a // Q
         b2 = b // Q
-        z = 4
+        z = a2 + 1
         while not self.is_prime(z):
-            z = random.randint(a2, b2)
+            z = z + 1
+        if (z > b2):
+            return "cacamou"    
         p.append(z)
         return self.post('/bin/hackademy/exam/prime/product', p=p)
             
-            
+    ## PRIME SAFE        
     def ticket1256(self):
         a = int(self.get('/bin/hackademy/ticket/1256/attachment/a'))
         b = int(self.get('/bin/hackademy/ticket/1256/attachment/b'))
@@ -573,6 +576,23 @@ class Connection:
                 c = (c * 2) + 1
                 if (pow(17, c, c) == 17):
                     return c
+
+    ## PRIMITIVE ROOT
+    def ticket1257(self, n):
+        a = int(self.get('/bin/hackademy/ticket/1257/attachment/a'))
+        b = int(self.get('/bin/hackademy/ticket/1257/attachment/b'))
+        a = a // 2
+        b = b // 2
+        c = 4
+        n = 0
+        while not self.is_prime(c):
+            n = 4
+            while not self.is_prime(n):
+                n = random.randint(a, b)|3
+            c = n * 2 + 1
+        for r in range(1, n):
+            if pow(r, n, c) != 1 and pow(r, (c - 1) // n, c) != 1:
+                return self.post('/bin/hackademy/exam/discrete-log/primitive-root', g=r, p_m_1=[n, 2])
             
     def ticket1258(self):
         a = int(self.get('/bin/hackademy/ticket/1258/attachment/a'))
@@ -615,6 +635,7 @@ class Connection:
             u = (u * S) % p
             i = i + 1
 
+    ## TRIAL DIVISION
     def ticket1260(self):
         d = self.get('/bin/hackademy/exam/factoring/trial-division/D')
         n = int(d['n'])
